@@ -101,3 +101,25 @@ podman rm grok-build-boxed
 - `~/.grok-build-boxed/` is mounted into `/home/grokuser` for persistent data.
 - `--userns=keep-id` keeps file ownership aligned with the host user.
 - See `Containerfile` for the image definition and defaults.
+
+## Working with projects
+
+Work directly inside `/home/grokuser` in the container. This is your mounted host folder (`~/.grok-build-boxed/`), so all files persist on the host.
+
+You can use either workflow:
+
+- Clone repositories from inside the container into `/home/grokuser`.
+- Or clone/copy from the host into `~/.grok-build-boxed/` and open/use them in the container.
+
+You can also add an additional mount if you prefer. Keep `~/.grok-build-boxed/` mounted to `/home/grokuser` because Grok stores config, metadata, and caches there. Mount extra folders as subfolders inside `/home/grokuser`, for example:
+
+> ⚠️ **Security note:** Be very careful what you mount into the container. Anything mapped into the container may also be readable (and potentially writable) by Grok, depending on permissions. Only mount directories you explicitly want Grok to access.
+
+```bash
+podman run -it --rm \
+	-v ~/.grok-build-boxed/:/home/grokuser:Z \
+	-v /home/olaf/work:/home/grokuser/work:Z \
+	--userns=keep-id:uid=1000,gid=1000 \
+	--hostname grok-build-boxed \
+	ghcr.io/olwig/grok-build-boxed:latest
+```
