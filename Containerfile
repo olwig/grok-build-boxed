@@ -15,6 +15,7 @@ RUN mkdir -p /etc/fish && \
         '    echo' \
         '    echo "Boxed. Isolated. Mildly paranoid on purpose."' \
         '    echo "Grok can cook in here. It does not get the keys to the house."' \
+        '    echo' \
         'end' \
         > /etc/fish/config.fish
 

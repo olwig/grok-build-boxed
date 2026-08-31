@@ -16,6 +16,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set timestamp tag
+        id: vars
+        run: echo "timestamp=$(date -u +'%Y%m%d-%H%M%S')" >> "$GITHUB_OUTPUT"
+
       - uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -27,4 +31,6 @@ jobs:
           context: .
           file: Containerfile
           push: true
-          tags: ghcr.io/${{ github.repository }}:latest
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.timestamp }}
+            ghcr.io/${{ github.repository }}:latest
