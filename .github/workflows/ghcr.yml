@@ -2,6 +2,8 @@ name: Build and push to GHCR
 on:
   push:
     branches: [main]
+    paths:
+      - Containerfile
 
   workflow_dispatch:
 
