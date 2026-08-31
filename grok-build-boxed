@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+podman pull ghcr.io/olwig/grok-build-boxed:latest
+
+podman run -it --rm \
+	-v ~/.grok-build-boxed/:/home/grokuser:Z \
+	--userns=keep-id:uid=1000,gid=1000 \
+	--hostname grok-build-boxed \
+	ghcr.io/olwig/grok-build-boxed:latest
