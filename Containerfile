@@ -3,7 +3,7 @@ FROM docker.io/archlinux/archlinux:latest
 LABEL org.opencontainers.image.source="https://github.com/olwig/grok-build-boxed"
 
 RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm --needed base-devel git sudo bubblewrap fish less && \
+    pacman -S --noconfirm --needed base-devel git sudo fish && \
     useradd -m -u 1001 -G wheel builder && \
     echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder && \
     chmod 0440 /etc/sudoers.d/builder && \
@@ -28,8 +28,17 @@ RUN git clone https://aur.archlinux.org/paru.git && \
     rm -rf paru && \
     paru -S --noconfirm grok-build-bin
 
+
+USER root
+RUN pacman -S --noconfirm --needed bubblewrap
+RUN pacman -S --noconfirm --needed fish
+RUN pacman -S --noconfirm --needed less
+RUN pacman -S --noconfirm --needed nano
+
+# enable only disable bypass permissions mode, it's in the container anyway
+RUN sed -i 's/^[[:space:]]*disable_bypass_permissions_mode[[:space:]]*=[[:space:]]*true[[:space:]]*$/disable_bypass_permissions_mode = false/' /etc/grok/requirements.toml
+
 USER grokuser
 WORKDIR /home/grokuser
-
 
 CMD ["fish"]
