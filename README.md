@@ -116,9 +116,9 @@ You can also add an additional mount if you prefer. Keep `~/.grok-build-boxed/` 
 > ⚠️ **Security note:** Be very careful what you mount into the container. Anything mapped into the container may also be readable (and potentially writable) by Grok, depending on permissions. Only mount directories you explicitly want Grok to access.
 
 ```bash
-podman run -it --rm \
+WORK="$HOME/work" podman run -it --rm \
 	-v ~/.grok-build-boxed/:/home/grokuser:Z \
-	-v /home/olaf/work:/home/grokuser/work:Z \
+	-v "$WORK":/work:Z \
 	--userns=keep-id:uid=1000,gid=1000 \
 	--hostname grok-build-boxed \
 	ghcr.io/olwig/grok-build-boxed:latest
