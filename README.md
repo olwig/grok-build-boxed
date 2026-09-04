@@ -44,6 +44,20 @@ podman run -it --rm \
 	ghcr.io/olwig/grok-build-boxed:latest
 ```
 
+Temporary session with a disposable host work folder:
+
+```bash
+WORK="$(mktemp -d)" podman run -it --rm \
+	-v ~/.grok-build-boxed/:/home/grokuser:Z \
+	-v "$WORK":/work:Z \
+	-w /work \
+	--userns=keep-id:uid=1000,gid=1000 \
+	--hostname grok-build-boxed \
+	localhost/grok-build-boxed:latest
+```
+
+If you use the bundled `./grok-build-boxed` launcher script, it creates a temporary host work directory for you and prints the path before the container starts.
+
 Named container (persists so you can start/stop and reuse it):
 
 Use self-built local image:
@@ -119,6 +133,7 @@ You can also add an additional mount if you prefer. Keep `~/.grok-build-boxed/` 
 WORK="$HOME/work" podman run -it --rm \
 	-v ~/.grok-build-boxed/:/home/grokuser:Z \
 	-v "$WORK":/work:Z \
+	-w /work \
 	--userns=keep-id:uid=1000,gid=1000 \
 	--hostname grok-build-boxed \
 	ghcr.io/olwig/grok-build-boxed:latest
