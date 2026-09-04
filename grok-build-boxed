@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 
+set -euo pipefail
+
+WORK="${WORK:-$(mktemp -d)}"
+echo "Using temporary host work directory: $WORK"
+
 podman pull ghcr.io/olwig/grok-build-boxed:latest
 
 podman run -it --rm \
 	-v ~/.grok-build-boxed/:/home/grokuser:Z \
+	-v "$WORK":/work:Z \
+	-w /work \
 	--userns=keep-id:uid=1000,gid=1000 \
 	--hostname grok-build-boxed \
 	ghcr.io/olwig/grok-build-boxed:latest
