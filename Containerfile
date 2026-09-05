@@ -34,7 +34,9 @@ RUN pacman -S --noconfirm --needed bubblewrap
 RUN pacman -S --noconfirm --needed fish
 RUN pacman -S --noconfirm --needed less
 RUN pacman -S --noconfirm --needed nano
-RUN pacman -S --noconfirm --needed tmux github-cli copr-cli
+RUN pacman -S --noconfirm --needed tmux 
+RUN pacman -S --noconfirm --needed github-cli 
+RUN pacman -S --noconfirm --needed copr-cli
 
 # disable requirements in the container
 RUN mv /etc/grok/requirements.toml /etc/grok/requirements.toml.disabled
