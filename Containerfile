@@ -37,6 +37,7 @@ RUN pacman -S --noconfirm --needed nano
 RUN pacman -S --noconfirm --needed tmux 
 RUN pacman -S --noconfirm --needed github-cli 
 RUN pacman -S --noconfirm --needed copr-cli
+RUN pacman -S --noconfirm --needed tini
 
 # disable requirements in the container
 RUN mv /etc/grok/requirements.toml /etc/grok/requirements.toml.disabled
@@ -44,4 +45,5 @@ RUN mv /etc/grok/requirements.toml /etc/grok/requirements.toml.disabled
 USER grokuser
 WORKDIR /home/grokuser
 
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["fish"]
