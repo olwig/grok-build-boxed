@@ -35,8 +35,9 @@ RUN pacman -S --noconfirm --needed fish
 RUN pacman -S --noconfirm --needed less
 RUN pacman -S --noconfirm --needed nano
 
-# enable only disable bypass permissions mode, it's in the container anyway
-RUN sed -i 's/^[[:space:]]*disable_bypass_permissions_mode[[:space:]]*=[[:space:]]*true[[:space:]]*$/disable_bypass_permissions_mode = false/' /etc/grok/requirements.toml
+# relax/disable requirements in the container
+RUN sed -i 's/^[[:space:]]*permission_mode[[:space:]]*=.*$/permission_mode = "auto"/' /etc/grok/requirements.toml && \
+    mv /etc/grok/requirements.toml /etc/grok/requirements.toml.disabled
 
 USER grokuser
 WORKDIR /home/grokuser
