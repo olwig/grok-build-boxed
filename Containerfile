@@ -3,7 +3,7 @@ FROM docker.io/archlinux/archlinux:latest
 LABEL org.opencontainers.image.source="https://github.com/olwig/grok-build-boxed"
 
 RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm --needed base-devel git sudo fish tmux github-cli copr-cli && \
+    pacman -S --noconfirm --needed base-devel git sudo fish && \
     useradd -m -u 1001 -G wheel builder && \
     echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder && \
     chmod 0440 /etc/sudoers.d/builder && \
@@ -34,6 +34,7 @@ RUN pacman -S --noconfirm --needed bubblewrap
 RUN pacman -S --noconfirm --needed fish
 RUN pacman -S --noconfirm --needed less
 RUN pacman -S --noconfirm --needed nano
+RUN pacman -S --noconfirm --needed tmux github-cli copr-cli
 
 # disable requirements in the container
 RUN mv /etc/grok/requirements.toml /etc/grok/requirements.toml.disabled
