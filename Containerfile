@@ -30,14 +30,14 @@ RUN git clone https://aur.archlinux.org/paru.git && \
 
 
 USER root
-RUN pacman -S --noconfirm --needed bubblewrap
-RUN pacman -S --noconfirm --needed fish
-RUN pacman -S --noconfirm --needed less
-RUN pacman -S --noconfirm --needed nano
-RUN pacman -S --noconfirm --needed tmux 
-RUN pacman -S --noconfirm --needed github-cli 
-RUN pacman -S --noconfirm --needed copr-cli
-RUN pacman -S --noconfirm --needed tini
+RUN paru -S --noconfirm --needed bubblewrap
+RUN paru -S --noconfirm --needed fish
+RUN paru -S --noconfirm --needed less
+RUN paru -S --noconfirm --needed nano
+RUN paru -S --noconfirm --needed tmux 
+RUN paru -S --noconfirm --needed github-cli 
+RUN paru -S --noconfirm --needed copr-cli
+RUN paru -S --noconfirm --needed tini
 
 # disable requirements in the container
 RUN mv /etc/grok/requirements.toml /etc/grok/requirements.toml.disabled
