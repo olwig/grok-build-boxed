@@ -3,7 +3,7 @@ FROM docker.io/archlinux/archlinux:latest
 LABEL org.opencontainers.image.source="https://github.com/olwig/grok-build-boxed"
 
 RUN pacman -Syu --noconfirm && \
-    pacman -S --noconfirm --needed base-devel git sudo fish && \
+    pacman -S --noconfirm --needed base-devel git sudo fish tmux github-cli copr-cli && \
     useradd -m -u 1001 -G wheel builder && \
     echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder && \
     chmod 0440 /etc/sudoers.d/builder && \
