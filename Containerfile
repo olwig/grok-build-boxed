@@ -35,9 +35,8 @@ RUN pacman -S --noconfirm --needed fish
 RUN pacman -S --noconfirm --needed less
 RUN pacman -S --noconfirm --needed nano
 
-# relax/disable requirements in the container
-RUN sed -i 's/^[[:space:]]*permission_mode[[:space:]]*=.*$/permission_mode = "auto"/' /etc/grok/requirements.toml && \
-    mv /etc/grok/requirements.toml /etc/grok/requirements.toml.disabled
+# disable requirements in the container
+RUN mv /etc/grok/requirements.toml /etc/grok/requirements.toml.disabled
 
 USER grokuser
 WORKDIR /home/grokuser
