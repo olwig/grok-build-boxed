@@ -28,8 +28,7 @@ RUN git clone https://aur.archlinux.org/paru.git && \
     rm -rf paru && \
     paru -S --noconfirm grok-build-bin
 
-
-USER root
+USER builder
 RUN paru -S --noconfirm --needed bubblewrap
 RUN paru -S --noconfirm --needed fish
 RUN paru -S --noconfirm --needed less
@@ -40,6 +39,7 @@ RUN paru -S --noconfirm --needed copr-cli
 RUN paru -S --noconfirm --needed tini
 
 # disable requirements in the container
+USER root
 RUN mv /etc/grok/requirements.toml /etc/grok/requirements.toml.disabled
 
 USER grokuser
