@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+# TODO merge in grok launcher script and remove this script
+# TODO implement HOST_WORK in conainter
+
+# if --pull flag present in args, set do pull the latest image
+do_pull=false
+for arg in "$@"; do
+	if [[ "$arg" == "--pull" ]]; then
+		do_pull=true
+		break
+	fi
+done
+
+if [ "$do_pull" = true ]; then
+    podman pull ghcr.io/olwig/grok-build-boxed:latest
+fi
+
+WORK="$PWD"
+podman run -it --rm \
+	-v ~/.grok-build-boxed/:/home/grokuser:Z \
+	-v "$WORK":/work:Z \
+	-w /work \
+	-e HOST_WORK="$WORK" \
+	--userns=keep-id:uid=1000,gid=1000 \
+	--hostname grok-build-boxed \
+	ghcr.io/olwig/grok-build-boxed:latest
+
