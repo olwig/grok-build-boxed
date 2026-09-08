@@ -37,6 +37,7 @@ RUN paru -S --noconfirm --needed tmux
 RUN paru -S --noconfirm --needed github-cli 
 RUN paru -S --noconfirm --needed copr-cli
 RUN paru -S --noconfirm --needed tini
+RUN paru -S --noconfirm --needed svn
 
 # disable requirements in the container
 USER root
