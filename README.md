@@ -22,6 +22,38 @@ Or use the latest workflow-built image from GHCR:
 podman pull ghcr.io/olwig/grok-build-boxed:latest
 ```
 
+## Sudo image
+
+Variant of the boxed image where `grokuser` can use sudo without a password.
+The process still starts as uid 1000 (`grokuser`), not as root. Use this when
+you want package installs or other root actions inside the cage without
+`podman exec --user root`.
+
+```bash
+./grok-pwd --sudo
+```
+
+That selects `ghcr.io/olwig/grok-build-boxed:sudo-latest`.
+`--pull` adds `podman run --pull=newer` (only fetch if missing or newer).
+
+Manual run:
+
+```bash
+podman run -it --rm --pull=newer \
+	-v ~/.grok-build-boxed/:/home/grokuser:Z \
+	-v "$PWD":/work:Z \
+	-w /work \
+	--userns=keep-id:uid=1000,gid=1000 \
+	--hostname grok-build-boxed \
+	ghcr.io/olwig/grok-build-boxed:sudo-latest
+```
+
+Build locally from `Containerfile.sudo`:
+
+```bash
+podman build -t grok-build-boxed:sudo -f Containerfile.sudo .
+```
+
 ## Run
 
 Temporary (with automatic cleanup via `--rm`):

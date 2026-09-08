@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - Containerfile
-      - Containerfile.root
+      - Containerfile.sudo
       - .github/workflows/ghcr.yml
   workflow_dispatch:
 
@@ -17,7 +17,7 @@ jobs:
       pull-requests: read
     outputs:
       default: ${{ steps.filter.outputs.default }}
-      root: ${{ steps.filter.outputs.root }}
+      sudo: ${{ steps.filter.outputs.sudo }}
       workflow: ${{ steps.filter.outputs.workflow }}
     steps:
       - uses: actions/checkout@v4
@@ -27,8 +27,8 @@ jobs:
           filters: |
             default:
               - Containerfile
-            root:
-              - Containerfile.root
+            sudo:
+              - Containerfile.sudo
             workflow:
               - .github/workflows/ghcr.yml
 
@@ -61,9 +61,9 @@ jobs:
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.timestamp }}
 
-  build-root:
+  build-sudo:
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.root == 'true' || needs.changes.outputs.workflow == 'true'
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.sudo == 'true' || needs.changes.outputs.workflow == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -82,10 +82,10 @@ jobs:
       - uses: docker/build-push-action@v6
         with:
           context: .
-          file: Containerfile.root
+          file: Containerfile.sudo
           push: true
           cache-from: type=gha
           cache-to: type=gha,mode=max
           tags: |
-            ghcr.io/${{ github.repository }}:root-latest
-            ghcr.io/${{ github.repository }}:root-${{ steps.vars.outputs.timestamp }}
+            ghcr.io/${{ github.repository }}:sudo-latest
+            ghcr.io/${{ github.repository }}:sudo-${{ steps.vars.outputs.timestamp }}
