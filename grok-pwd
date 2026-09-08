@@ -4,17 +4,26 @@ set -euo pipefail
 # TODO merge in grok launcher script and remove this script
 # TODO implement HOST_WORK in conainter
 
-# if --pull flag present in args, set do pull the latest image
+# --pull: pull selected image before run
+# --root: use root-latest instead of latest
 do_pull=false
+use_root=false
 for arg in "$@"; do
 	if [[ "$arg" == "--pull" ]]; then
 		do_pull=true
-		break
+	elif [[ "$arg" == "--root" ]]; then
+		use_root=true
 	fi
 done
 
+if [ "$use_root" = true ]; then
+	image="ghcr.io/olwig/grok-build-boxed:root-latest"
+else
+	image="ghcr.io/olwig/grok-build-boxed:latest"
+fi
+
 if [ "$do_pull" = true ]; then
-    podman pull ghcr.io/olwig/grok-build-boxed:latest
+	podman pull "$image"
 fi
 
 WORK="$PWD"
@@ -25,5 +34,4 @@ podman run -it --rm \
 	-e HOST_WORK="$WORK" \
 	--userns=keep-id:uid=1000,gid=1000 \
 	--hostname grok-build-boxed \
-	ghcr.io/olwig/grok-build-boxed:latest
-
+	"$image"
