@@ -1,4 +1,4 @@
-name: build-n-push-to-ghcr
+name: Build and push to GHCR
 
 on:
   push:
@@ -10,13 +10,13 @@ on:
   workflow_dispatch:
     inputs:
       dryrun:
-        description: 'Build locally without pushing to GHCR'
+        description: 'dry-run (build only, do not push)'
         required: false
         type: choice
         options:
           - 'false'
           - 'true'
-        default: 'false'
+        default: 'true'
   # schedule weekly rebuild to update pkgs
   schedule:
     - cron: '33 3 * * 6'
