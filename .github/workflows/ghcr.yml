@@ -8,6 +8,9 @@ on:
       - Containerfile.sudo
       - .github/workflows/ghcr.yml
   workflow_dispatch:
+  # schedule weekly rebuild to update pkgs
+  schedule:
+    - cron: '33 3 * * 6'
 
 jobs:
   changes:
@@ -19,6 +22,7 @@ jobs:
       default: ${{ steps.filter.outputs.default }}
       sudo: ${{ steps.filter.outputs.sudo }}
       workflow: ${{ steps.filter.outputs.workflow }}
+      force-all: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -34,7 +38,7 @@ jobs:
 
   build-default:
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.default == 'true' || needs.changes.outputs.workflow == 'true'
+    if: needs.changes.outputs.force-all == 'true' || needs.changes.outputs.default == 'true' || needs.changes.outputs.workflow == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -55,15 +59,19 @@ jobs:
           context: .
           file: Containerfile
           push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          pull: ${{ needs.changes.outputs.force-all == 'true' }}
+          no-cache: true
+          #no-cache: ${{ needs.changes.outputs.force-all == 'true' }}
+          #cache-from: type=gha
+          #cache-to: type=gha,mode=max
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.timestamp }}
 
   build-sudo:
-    needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.sudo == 'true' || needs.changes.outputs.workflow == 'true'
+    # sudo depens on default
+    needs: [changes, build-default]
+    if: needs.changes.outputs.force-all == 'true' || needs.changes.outputs.sudo == 'true' || needs.changes.outputs.workflow == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -84,8 +92,11 @@ jobs:
           context: .
           file: Containerfile.sudo
           push: true
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          pull: ${{ needs.changes.outputs.force-all == 'true' }}
+          no-cache: true
+          #no-cache: ${{ needs.changes.outputs.force-all == 'true' }}
+          #cache-from: type=gha
+          #cache-to: type=gha,mode=max
           tags: |
             ghcr.io/${{ github.repository }}:sudo-latest
             ghcr.io/${{ github.repository }}:sudo-${{ steps.vars.outputs.timestamp }}
