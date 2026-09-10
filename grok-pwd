@@ -27,13 +27,14 @@ if [ "$do_pull" = true ]; then
 	pull_args=(--pull=newer)
 fi
 
-WORK="$PWD"
+# user name leaks in container anyways ...
+HOST_WORK="$PWD"
+CONTAINER_WORK="/mnt/$HOST_WORK"
 podman run -it --rm \
 	"${pull_args[@]}" \
 	-v ~/.grok-build-boxed/:/home/grokuser:Z \
-	-v "$WORK":/work:Z \
-	-w /work \
-	-e HOST_WORK="$WORK" \
+	-v "$HOST_WORK":"$CONTAINER_WORK":Z \
+	-w "$CONTAINER_WORK" \
 	--userns=keep-id:uid=1000,gid=1000 \
 	--hostname grok-build-boxed \
 	"$image"
