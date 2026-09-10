@@ -25,10 +25,10 @@ RUN git clone https://aur.archlinux.org/paru.git && \
     cd paru && \
     makepkg -si --noconfirm && \
     cd .. && \
-    rm -rf paru && \
-    paru -S --noconfirm grok-build-bin
+    rm -rf paru
 
 USER builder
+RUN paru -S --noconfirm --needed grok-build-bin
 RUN paru -S --noconfirm --needed bubblewrap
 RUN paru -S --noconfirm --needed fish
 RUN paru -S --noconfirm --needed less
