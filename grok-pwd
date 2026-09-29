@@ -1,20 +1,65 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
-# TODO merge in grok launcher script and remove this script
-# TODO implement HOST_WORK in conainter
 
-# --pull: podman run --pull=newer
-# --sudo: use sudo-latest instead of latest
+# pull newer image before running container, if newer image exists
 do_pull=false
+
+# use sudo-latest image tag instead of latest, which is just a ordinary user
 use_sudo=false
+
+# Hash the host working directory to keep the mounted path short and isolate sessions over different open containers
+do_hash_work=false
+
 for arg in "$@"; do
-	if [[ "$arg" == "--pull" ]]; then
-		do_pull=true
-	elif [[ "$arg" == "--sudo" ]]; then
-		use_sudo=true
+	if [[ "$arg" == "--help" || "$arg" == "-h" ]]; then
+		echo "Usage: $(basename "$0") [OPTIONS] [-- CONTAINER_ARGS...]"
+		echo
+		echo "Options:"
+		echo "  --pull         Pull newer image before running container, if a newer image exists."
+		echo "  --sudo         Use sudo-latest image tag instead of latest (ordinary user image)."
+		echo "  --hash-work    Use a hashed version of the current working directory as the container working directory."
+		echo "  --help, -h     Show this help message and exit."
+		echo
+		echo "Argument separator:"
+		echo "  --             Not an option; passes everything after this directly to the container."
+		echo
+		echo "Notes:"
+		echo "  Unrecognized arguments before '--' are forwarded to the container command."
+		echo
+		echo "Examples:"
+		echo "  $(basename "$0") --pull"
+		echo "  $(basename "$0") --sudo --hash-work"
+		echo "  $(basename "$0") -- --version"
+		exit 0
 	fi
 done
+
+container_args=()
+pass_through=false
+for arg in "$@"; do
+	if [ "$pass_through" = true ]; then
+		container_args+=("$arg")
+		continue
+	fi
+
+	case "$arg" in
+		--)
+			pass_through=true
+			;;
+		--pull)
+			do_pull=true
+			;;
+		--sudo)
+			use_sudo=true
+			;;
+		--hash-work)
+			do_hash_work=true
+			;;
+	esac
+done
+
+echo "Running container with args: ${container_args[*]}"
 
 if [ "$use_sudo" = true ]; then
 	image="ghcr.io/olwig/grok-build-boxed:sudo-latest"
@@ -27,9 +72,13 @@ if [ "$do_pull" = true ]; then
 	pull_args=(--pull=newer)
 fi
 
-# user name leaks in container anyways ...
 HOST_WORK="$PWD"
-CONTAINER_WORK="/mnt/$HOST_WORK"
+CONTAINER_WORK="/work/$HOST_WORK"
+if [ "$do_hash_work" = true ]; then
+	hash=$(printf '%s' "$HOST_WORK" | sha256sum | cut -c1-7)
+	CONTAINER_WORK="/mnt/$hash"
+fi
+
 podman run -it --rm \
 	"${pull_args[@]}" \
 	-v ~/.grok-build-boxed/:/home/grokuser:Z \
@@ -37,4 +86,4 @@ podman run -it --rm \
 	-w "$CONTAINER_WORK" \
 	--userns=keep-id:uid=1000,gid=1000 \
 	--hostname grok-build-boxed \
-	"$image"
+	"$image" "${container_args[@]}"
