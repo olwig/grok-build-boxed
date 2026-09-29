@@ -83,7 +83,7 @@ jobs:
   build-sudo:
     # sudo depens on default
     needs: [changes, build-default]
-    if: needs.changes.outputs.force-all == 'true' || needs.changes.outputs.sudo == 'true' || needs.changes.outputs.workflow == 'true'
+    if: needs.changes.outputs.force-all == 'true' || needs.changes.outputs.sudo == 'true' || needs.changes.outputs.default == 'true' || needs.changes.outputs.workflow == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
