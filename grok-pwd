@@ -79,6 +79,11 @@ if [ "$do_hash_work" = true ]; then
 	CONTAINER_WORK="/mnt/$hash"
 fi
 
+# create user dir if not exist
+if [ ! -d ~/.grok-build-boxed ]; then
+	mkdir -p ~/.grok-build-boxed
+fi
+
 podman run -it --rm \
 	"${pull_args[@]}" \
 	-v ~/.grok-build-boxed/:/home/grokuser:Z \
