@@ -11,6 +11,9 @@ use_sudo=false
 # Hash the host working directory to keep the mounted path short and isolate sessions over different open containers
 do_hash_work=false
 
+# if true use localhost image instead of ghcr.io image
+localhost_image=false
+
 for arg in "$@"; do
 	if [[ "$arg" == "--help" || "$arg" == "-h" ]]; then
 		echo "Usage: $(basename "$0") [OPTIONS] [-- CONTAINER_ARGS...]"
@@ -18,6 +21,7 @@ for arg in "$@"; do
 		echo "Options:"
 		echo "  --pull         Pull newer image before running container, if a newer image exists."
 		echo "  --sudo         Use sudo-latest image tag instead of latest (ordinary user image)."
+		echo "  --localhost-image  Use localhost image instead of ghcr.io image."
 		echo "  --hash-work    Use a hashed version of the current working directory as the container working directory."
 		echo "  --help, -h     Show this help message and exit."
 		echo
@@ -56,15 +60,23 @@ for arg in "$@"; do
 		--hash-work)
 			do_hash_work=true
 			;;
+		--localhost-image)
+			localhost_image=true
+			;;
 	esac
 done
 
 echo "Running container with args: ${container_args[*]}"
 
+image_repo="ghcr.io/olwig/grok-build-boxed"
+if [ "$localhost_image" = true ]; then
+	image_repo="localhost/olwig/grok-build-boxed"
+fi
+
 if [ "$use_sudo" = true ]; then
-	image="ghcr.io/olwig/grok-build-boxed:sudo-latest"
+	image="$image_repo:sudo-latest"
 else
-	image="ghcr.io/olwig/grok-build-boxed:latest"
+	image="$image_repo:latest"
 fi
 
 pull_args=()
@@ -89,6 +101,8 @@ podman run -it --rm \
 	-v ~/.grok-build-boxed/:/home/grokuser:Z \
 	-v "$HOST_WORK":"$CONTAINER_WORK":Z \
 	-w "$CONTAINER_WORK" \
+	-v "$XDG_RUNTIME_DIR/pipewire-0:/tmp/pipewire-0:Z" \
+	-e XDG_RUNTIME_DIR=/tmp \
 	--userns=keep-id:uid=1000,gid=1000 \
 	--hostname grok-build-boxed \
 	"$image" "${container_args[@]}"

@@ -10,6 +10,16 @@ Grok's built-in sandbox is not safe enough (for me) to run directly on my host s
 
 Running Grok inside a container solves these security issues: it is fully caged, has no access to your host filesystem (except the explicitly mounted `~/.grok-build-boxed/`), cannot interfere with your system, and is reusable.
 
+## TODO
+
+- Match the container user folder to the host path so copied workspace paths work instantly.
+- Clean up CLI args.
+- Revise the README.
+- Have Grok review this project.
+- Support build targets for localhost, docker.io, and ghcr.io.
+- Make my preferred set of arguments the default (for example: sudo + hash-work + pull).
+- Check that pull only fetches when the image is missing or newer.
+
 ## Build
 
 ```bash

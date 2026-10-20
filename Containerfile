@@ -5,7 +5,8 @@ LABEL org.opencontainers.image.source="https://github.com/olwig/grok-build-boxed
 RUN pacman -Sy --noconfirm --needed \
         base-devel git sudo fish bubblewrap \
         less nano tmux github-cli \
-        subversion copr-cli && \
+        subversion copr-cli \
+        pipewire-audio && \
     useradd -m -u 1001 builder && \
     echo "builder ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/builder && \
     chmod 0440 /etc/sudoers.d/builder && \
