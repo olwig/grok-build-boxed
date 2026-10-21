@@ -5,8 +5,7 @@ on:
     branches: [main]
     paths:
       - Containerfile
-      - Containerfile.sudo
-      - .github/workflows/ghcr.yml
+      - .github/workflows/build-n-push-ghcr.yml
   workflow_dispatch:
     inputs:
       dryrun:
@@ -17,47 +16,97 @@ on:
           - 'false'
           - 'true'
         default: 'true'
-  # schedule weekly rebuild to update pkgs
+  # Daily probe. The build job runs only when the AUR package version changed.
   schedule:
-    - cron: '33 3 * * 6'
+    - cron: '33 3 * * *'
 
 jobs:
-  changes:
+  version:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      packages: read
     outputs:
-      default: ${{ steps.filter.outputs.default }}
-      sudo: ${{ steps.filter.outputs.sudo }}
-      workflow: ${{ steps.filter.outputs.workflow }}
-      force-all: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'schedule' }}
-      dryrun: ${{ github.event_name == 'workflow_dispatch' && inputs.dryrun == 'true' }}
+      pkgver: ${{ steps.aur.outputs.pkgver }}
+      pkgrel: ${{ steps.aur.outputs.pkgrel }}
+      changed: ${{ steps.decide.outputs.changed }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            default:
-              - Containerfile
-            sudo:
-              - Containerfile.sudo
-            workflow:
-              - .github/workflows/ghcr.yml
+      - name: Read grok-build-bin version from AUR
+        id: aur
+        run: |
+          set -euo pipefail
+          workdir=$(mktemp -d)
+          trap 'rm -rf "$workdir"' EXIT
+          GIT_TERMINAL_PROMPT=0 git clone --depth 1 https://aur.archlinux.org/grok-build-bin.git "$workdir/grok-build-bin"
+          srcinfo="$workdir/grok-build-bin/.SRCINFO"
+          if [ ! -s "$srcinfo" ]; then
+            echo "error: AUR grok-build-bin clone has no .SRCINFO" >&2
+            exit 1
+          fi
+          pkgver=$(awk -F ' = ' '/^[[:space:]]*pkgver = / { print $2; exit }' "$srcinfo")
+          pkgrel=$(awk -F ' = ' '/^[[:space:]]*pkgrel = / { print $2; exit }' "$srcinfo")
+          if [ -z "${pkgver}" ] || [ -z "${pkgrel}" ]; then
+            echo "error: could not read pkgver and pkgrel from AUR grok-build-bin" >&2
+            exit 1
+          fi
+          case "$pkgver" in
+            *[!0-9A-Za-z._-]*)
+              echo "error: invalid pkgver '$pkgver'" >&2
+              exit 1
+              ;;
+          esac
+          case "$pkgrel" in
+            *[!0-9]*)
+              echo "error: invalid pkgrel '$pkgrel'" >&2
+              exit 1
+              ;;
+          esac
+          echo "pkgver=$pkgver" >> "$GITHUB_OUTPUT"
+          echo "pkgrel=$pkgrel" >> "$GITHUB_OUTPUT"
 
-  build-default:
-    needs: changes
-    if: needs.changes.outputs.force-all == 'true' || needs.changes.outputs.default == 'true' || needs.changes.outputs.workflow == 'true'
+      - uses: docker/setup-buildx-action@v3
+        if: github.event_name == 'schedule'
+
+      - uses: docker/login-action@v3
+        if: github.event_name == 'schedule'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Decide whether to build
+        id: decide
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          IMAGE: ghcr.io/${{ github.repository }}:latest
+          PKGVER: ${{ steps.aur.outputs.pkgver }}
+          PKGREL: ${{ steps.aur.outputs.pkgrel }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" != "schedule" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          fmt_ver='{{if .Image}}{{if .Image.Config}}{{if .Image.Config.Labels}}{{index .Image.Config.Labels "xyz.olwig.grok-build-boxed.version"}}{{end}}{{end}}{{end}}'
+          fmt_rel='{{if .Image}}{{if .Image.Config}}{{if .Image.Config.Labels}}{{index .Image.Config.Labels "xyz.olwig.grok-build-boxed.pkgrel"}}{{end}}{{end}}{{end}}'
+          ver=$(docker buildx imagetools inspect "$IMAGE" --format "$fmt_ver")
+          rel=$(docker buildx imagetools inspect "$IMAGE" --format "$fmt_rel")
+          if [ "$ver" = "$PKGVER" ] && [ "$rel" = "$PKGREL" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: version
+    if: needs.version.outputs.changed == 'true'
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
-      - name: Set timestamp tag
-        id: vars
-        run: echo "timestamp=$(date -u +'%Y%m%d-%H%M%S')" >> "$GITHUB_OUTPUT"
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         if: ${{ github.event_name != 'workflow_dispatch' || inputs.dryrun != 'true' }}
@@ -71,46 +120,12 @@ jobs:
           file: Containerfile
           push: ${{ github.event_name != 'workflow_dispatch' || inputs.dryrun != 'true' }}
           load: ${{ github.event_name == 'workflow_dispatch' && inputs.dryrun == 'true' }}
-          pull: ${{ needs.changes.outputs.force-all == 'true' }}
-          no-cache: true
-          #no-cache: ${{ needs.changes.outputs.force-all == 'true' }}
-          #cache-from: type=gha
-          #cache-to: type=gha,mode=max
+          pull: ${{ github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            GROK_BUILD_VERSION=${{ needs.version.outputs.pkgver }}
+            GROK_BUILD_PKGREL=${{ needs.version.outputs.pkgrel }}
           tags: |
+            ghcr.io/${{ github.repository }}:${{ needs.version.outputs.pkgver }}
             ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ steps.vars.outputs.timestamp }}
-
-  build-sudo:
-    # sudo depens on default
-    needs: [changes, build-default]
-    if: needs.changes.outputs.force-all == 'true' || needs.changes.outputs.sudo == 'true' || needs.changes.outputs.default == 'true' || needs.changes.outputs.workflow == 'true'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
-      - name: Set timestamp tag
-        id: vars
-        run: echo "timestamp=$(date -u +'%Y%m%d-%H%M%S')" >> "$GITHUB_OUTPUT"
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
-        if: ${{ github.event_name != 'workflow_dispatch' || inputs.dryrun != 'true' }}
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Containerfile.sudo
-          push: ${{ github.event_name != 'workflow_dispatch' || inputs.dryrun != 'true' }}
-          load: ${{ github.event_name == 'workflow_dispatch' && inputs.dryrun == 'true' }}
-          pull: ${{ needs.changes.outputs.force-all == 'true' }}
-          no-cache: true
-          #no-cache: ${{ needs.changes.outputs.force-all == 'true' }}
-          #cache-from: type=gha
-          #cache-to: type=gha,mode=max
-          tags: |
-            ghcr.io/${{ github.repository }}:sudo-latest
-            ghcr.io/${{ github.repository }}:sudo-${{ steps.vars.outputs.timestamp }}

@@ -17,14 +17,19 @@ Running Grok inside a container solves these security issues: it is fully caged,
 - Revise the README.
 - Have Grok review this project.
 - Support build targets for localhost, docker.io, and ghcr.io.
-- Make my preferred set of arguments the default (for example: sudo + hash-work + pull).
+- Make my preferred set of arguments the default (for example: hash-work + pull).
 - Check that pull only fetches when the image is missing or newer.
+- Choose the Arch base tag. `docker.io/archlinux/archlinux:latest` is rebuilt about daily, so the GitHub Actions layer cache is reused only while that digest stays the same. `docker.io/library/archlinux:latest` is the official Docker Hub image and is rebuilt about weekly, so `:latest` still moves and a rebuild in the same week can reuse the package and tini layer. An immutable date tag such as `base-YYYYMMDD.0.<job>` keeps that layer reusable until the tag is changed; Arch stays on that snapshot until then. The Actions cache is already on. A miss rebuilds like a cold build, and unused cache entries drop after 7 days. There is no `pacman -Syu`: the base system stays at the image snapshot, and only the packages named in the Containerfile are installed from the mirrors at build time.
 
 ## Build
 
 ```bash
-podman build -t grok-build-boxed .
+./build.sh
 ```
+
+`./build.sh` reads the AUR `grok-build-bin` version and tags
+`localhost/olwig/grok-build-boxed:latest` and
+`localhost/olwig/grok-build-boxed:<version>`.
 
 Or use the latest workflow-built image from GHCR:
 
@@ -32,21 +37,19 @@ Or use the latest workflow-built image from GHCR:
 podman pull ghcr.io/olwig/grok-build-boxed:latest
 ```
 
-## Sudo image
+Pin the Grok Build version installed in an image with that version tag, for example `ghcr.io/olwig/grok-build-boxed:1.0.62`.
 
-Variant of the boxed image where `grokuser` can use sudo without a password.
-The process still starts as uid 1000 (`grokuser`), not as root. Use this when
-you want package installs or other root actions inside the cage without
-`podman exec --user root`.
+## Image updates
 
-```bash
-./grok-pwd --sudo
-```
+Published tags are `:latest` and `:<grok version>` (the Grok Build version installed in that image).
 
-That selects `ghcr.io/olwig/grok-build-boxed:sudo-latest`.
-`--pull` adds `podman run --pull=newer` (only fetch if missing or newer).
+The image is published when `Containerfile` or `.github/workflows/build-n-push-ghcr.yml` changes on `main`, when the workflow is run manually, or when the daily check sees a new AUR `grok-build-bin` version (`pkgver` or `pkgrel`). A matching package version does not publish a new image.
 
-Manual run:
+The Arch base is `docker.io/archlinux/archlinux:latest`. A new digest of that tag rebuilds every layer. While that digest is unchanged, a new `grok-build-bin` version rebuilds the layer that installs Grok Build. GitHub Actions reuses the unchanged layers from its cache.
+
+## Sudo
+
+`grokuser` can use sudo without a password. The process still starts as uid 1000 (`grokuser`).
 
 ```bash
 podman run -it --rm --pull=newer \
@@ -55,13 +58,7 @@ podman run -it --rm --pull=newer \
 	-w /work \
 	--userns=keep-id:uid=1000,gid=1000 \
 	--hostname grok-build-boxed \
-	ghcr.io/olwig/grok-build-boxed:sudo-latest
-```
-
-Build locally from `Containerfile.sudo`:
-
-```bash
-podman build -t grok-build-boxed:sudo -f Containerfile.sudo .
+	ghcr.io/olwig/grok-build-boxed:latest
 ```
 
 ## Run
@@ -156,6 +153,7 @@ podman rm grok-build-boxed
 
 - `~/.grok-build-boxed/` is mounted into `/home/grokuser` for persistent data.
 - `--userns=keep-id` keeps file ownership aligned with the host user.
+- `./run.sh --host-network` passes `--network=host` to Podman. The container then uses the host network namespace: host interfaces, services on localhost, and host ports. Without the flag it keeps Podman's own network.
 - See `Containerfile` for the image definition and defaults.
 
 ## Working with projects
