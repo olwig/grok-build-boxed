@@ -5,14 +5,14 @@ set -euo pipefail
 # pull newer image before running container, if newer image exists
 do_pull=false
 
-# use sudo-latest image tag instead of latest, which is just a ordinary user
-use_sudo=false
-
 # Hash the host working directory to keep the mounted path short and isolate sessions over different open containers
 do_hash_work=false
 
 # if true use localhost image instead of ghcr.io image
 localhost_image=false
+
+# if true, share the host network namespace with the container
+do_host_network=false
 
 for arg in "$@"; do
 	if [[ "$arg" == "--help" || "$arg" == "-h" ]]; then
@@ -20,20 +20,22 @@ for arg in "$@"; do
 		echo
 		echo "Options:"
 		echo "  --pull         Pull newer image before running container, if a newer image exists."
-		echo "  --sudo         Use sudo-latest image tag instead of latest (ordinary user image)."
 		echo "  --localhost-image  Use localhost image instead of ghcr.io image."
 		echo "  --hash-work    Use a hashed version of the current working directory as the container working directory."
+		echo "  --host-network Give the container the host network namespace."
 		echo "  --help, -h     Show this help message and exit."
 		echo
 		echo "Argument separator:"
 		echo "  --             Not an option; passes everything after this directly to the container."
 		echo
 		echo "Notes:"
-		echo "  Unrecognized arguments before '--' are forwarded to the container command."
+		echo "  Unknown flags are an error. See --help."
+		echo "  Arguments after '--' are passed to the container."
 		echo
 		echo "Examples:"
 		echo "  $(basename "$0") --pull"
-		echo "  $(basename "$0") --sudo --hash-work"
+		echo "  $(basename "$0") --hash-work"
+		echo "  $(basename "$0") --host-network"
 		echo "  $(basename "$0") -- --version"
 		exit 0
 	fi
@@ -54,14 +56,18 @@ for arg in "$@"; do
 		--pull)
 			do_pull=true
 			;;
-		--sudo)
-			use_sudo=true
-			;;
 		--hash-work)
 			do_hash_work=true
 			;;
 		--localhost-image)
 			localhost_image=true
+			;;
+		--host-network)
+			do_host_network=true
+			;;
+		-*)
+			echo "error: $arg is not a valid flag. See --help." >&2
+			exit 1
 			;;
 	esac
 done
@@ -73,15 +79,16 @@ if [ "$localhost_image" = true ]; then
 	image_repo="localhost/olwig/grok-build-boxed"
 fi
 
-if [ "$use_sudo" = true ]; then
-	image="$image_repo:sudo-latest"
-else
-	image="$image_repo:latest"
-fi
+image="$image_repo:latest"
 
 pull_args=()
 if [ "$do_pull" = true ]; then
 	pull_args=(--pull=newer)
+fi
+
+network_args=()
+if [ "$do_host_network" = true ]; then
+	network_args=(--network=host)
 fi
 
 HOST_WORK="$PWD"
@@ -98,6 +105,7 @@ fi
 
 podman run -it --rm \
 	"${pull_args[@]}" \
+	"${network_args[@]}" \
 	-v ~/.grok-build-boxed/:/home/grokuser:Z \
 	-v "$HOST_WORK":"$CONTAINER_WORK":Z \
 	-w "$CONTAINER_WORK" \

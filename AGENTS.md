@@ -10,8 +10,8 @@ Actions builds and publishes the images.
 
 - Isolation is the feature. Do not add host mounts, capabilities, or
   `--privileged`. If a mount is added, say what it exposes.
-- The sudo image stays a thin layer on the default image and still starts as
-  `grokuser`.
+- There is one image. It includes passwordless sudo for `grokuser` and still
+  starts as `grokuser`.
 - Keep the final image small. Do not put build tools or package caches back
   into the last layer.
 - The launcher stays a thin Podman wrapper. Do not add host dependencies.
