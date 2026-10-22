@@ -16,9 +16,11 @@ on:
           - 'false'
           - 'true'
         default: 'true'
-  # Daily probe. The build job runs only when the AUR package version changed.
+  # Daily probe at 09:11 UTC. That is 11:11 Europe/Berlin in summer
+  # (CEST) and 10:11 in winter (CET). Actions cron has no time zone.
+  # The build job runs only when the AUR package version changed.
   schedule:
-    - cron: '33 3 * * *'
+    - cron: '11 9 * * *'
 
 jobs:
   version:
@@ -61,6 +63,7 @@ jobs:
               exit 1
               ;;
           esac
+          echo "AUR grok-build-bin ${pkgver}-${pkgrel}"
           echo "pkgver=$pkgver" >> "$GITHUB_OUTPUT"
           echo "pkgrel=$pkgrel" >> "$GITHUB_OUTPUT"
 
@@ -81,9 +84,15 @@ jobs:
           IMAGE: ghcr.io/${{ github.repository }}:latest
           PKGVER: ${{ steps.aur.outputs.pkgver }}
           PKGREL: ${{ steps.aur.outputs.pkgrel }}
+          DRYRUN: ${{ inputs.dryrun }}
         run: |
           set -euo pipefail
           if [ "$EVENT_NAME" != "schedule" ]; then
+            if [ "$EVENT_NAME" = "workflow_dispatch" ] && [ "${DRYRUN}" = "true" ]; then
+              echo "Manual dry-run. Building ${PKGVER}-${PKGREL}, not uploading."
+            else
+              echo "${EVENT_NAME} run. Building and uploading ${PKGVER}-${PKGREL}."
+            fi
             echo "changed=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -91,13 +100,17 @@ jobs:
           fmt_rel='{{if .Image}}{{if .Image.Config}}{{if .Image.Config.Labels}}{{index .Image.Config.Labels "xyz.olwig.grok-build-boxed.pkgrel"}}{{end}}{{end}}{{end}}'
           ver=$(docker buildx imagetools inspect "$IMAGE" --format "$fmt_ver")
           rel=$(docker buildx imagetools inspect "$IMAGE" --format "$fmt_rel")
+          echo "Published :latest is ${ver:-none}-${rel:-none}."
           if [ "$ver" = "$PKGVER" ] && [ "$rel" = "$PKGREL" ]; then
+            echo "Same version. Skipping build and upload."
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
+            echo "Version differs. Building and uploading."
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
   build:
+    name: build ${{ needs.version.outputs.pkgver }}-${{ needs.version.outputs.pkgrel }}
     needs: version
     if: needs.version.outputs.changed == 'true'
     runs-on: ubuntu-latest
@@ -115,6 +128,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/build-push-action@v6
+        id: image
         with:
           context: .
           file: Containerfile
@@ -129,3 +143,17 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:${{ needs.version.outputs.pkgver }}
             ghcr.io/${{ github.repository }}:latest
+      - name: Report build result
+        if: always()
+        env:
+          OUTCOME: ${{ steps.image.outcome }}
+          PUSH: ${{ (github.event_name != 'workflow_dispatch' || inputs.dryrun != 'true') && 'true' || 'false' }}
+        run: |
+          set -euo pipefail
+          if [ "$OUTCOME" = "success" ] && [ "$PUSH" = "true" ]; then
+            echo "Build succeeded and was uploaded."
+          elif [ "$OUTCOME" = "success" ]; then
+            echo "Build succeeded. Dry-run, so nothing was uploaded."
+          else
+            echo "Build ${OUTCOME}. Nothing was uploaded."
+          fi
