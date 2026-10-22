@@ -17,7 +17,6 @@ Running Grok inside a container solves these security issues: it is fully caged,
 - Revise the README.
 - Have Grok review this project.
 - Support build targets for localhost, docker.io, and ghcr.io.
-- Make my preferred set of arguments the default (for example: hash-work + pull).
 - Check that pull only fetches when the image is missing or newer.
 - Choose the Arch base tag. `docker.io/archlinux/archlinux:latest` is rebuilt about daily, so the GitHub Actions layer cache is reused only while that digest stays the same. `docker.io/library/archlinux:latest` is the official Docker Hub image and is rebuilt about weekly, so `:latest` still moves and a rebuild in the same week can reuse the package and tini layer. An immutable date tag such as `base-YYYYMMDD.0.<job>` keeps that layer reusable until the tag is changed; Arch stays on that snapshot until then. The Actions cache is already on. A miss rebuilds like a cold build, and unused cache entries drop after 7 days. There is no `pacman -Syu`: the base system stays at the image snapshot, and only the packages named in the Containerfile are installed from the mirrors at build time.
 
@@ -153,6 +152,8 @@ podman rm grok-build-boxed
 
 - `~/.grok-build-boxed/` is mounted into `/home/grokuser` for persistent data.
 - `--userns=keep-id` keeps file ownership aligned with the host user.
+- `./run.sh` passes `--pull=newer` to Podman, so Podman fetches the image only when it is missing or newer. `--no-pull` skips that check.
+- `./run.sh` mounts the current directory at `/mnt/` plus the first 7 hex characters of the SHA-256 of that path, and starts there. `--no-hash-work` mounts it at `/work/<host path>` instead. `--hash-work` turns the hashed path back on when it follows `--no-hash-work`.
 - `./run.sh --host-network` passes `--network=host` to Podman. The container then uses the host network namespace: host interfaces, services on localhost, and host ports. Without the flag it keeps Podman's own network.
 - See `Containerfile` for the image definition and defaults.
 

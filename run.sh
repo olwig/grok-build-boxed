@@ -3,10 +3,10 @@
 set -euo pipefail
 
 # pull newer image before running container, if newer image exists
-do_pull=false
+do_pull=true
 
 # Hash the host working directory to keep the mounted path short and isolate sessions over different open containers
-do_hash_work=false
+do_hash_work=true
 
 # if true use localhost image instead of ghcr.io image
 localhost_image=false
@@ -19,9 +19,11 @@ for arg in "$@"; do
 		echo "Usage: $(basename "$0") [OPTIONS] [-- CONTAINER_ARGS...]"
 		echo
 		echo "Options:"
-		echo "  --pull         Pull newer image before running container, if a newer image exists."
+		echo "  --pull         Pull a newer image before running, if one exists. On by default."
+		echo "  --no-pull      Do not pull an image before running."
 		echo "  --localhost-image  Use localhost image instead of ghcr.io image."
-		echo "  --hash-work    Use a hashed version of the current working directory as the container working directory."
+		echo "  --hash-work    Mount the current directory at a short hashed path. On by default."
+		echo "  --no-hash-work Mount the current directory at /work/<host path>."
 		echo "  --host-network Give the container the host network namespace."
 		echo "  --help, -h     Show this help message and exit."
 		echo
@@ -31,10 +33,11 @@ for arg in "$@"; do
 		echo "Notes:"
 		echo "  Unknown flags are an error. See --help."
 		echo "  Arguments after '--' are passed to the container."
+		echo "  When a flag and its --no- form both appear, the last one wins."
 		echo
 		echo "Examples:"
-		echo "  $(basename "$0") --pull"
-		echo "  $(basename "$0") --hash-work"
+		echo "  $(basename "$0")"
+		echo "  $(basename "$0") --no-pull --no-hash-work"
 		echo "  $(basename "$0") --host-network"
 		echo "  $(basename "$0") -- --version"
 		exit 0
@@ -56,8 +59,14 @@ for arg in "$@"; do
 		--pull)
 			do_pull=true
 			;;
+		--no-pull)
+			do_pull=false
+			;;
 		--hash-work)
 			do_hash_work=true
+			;;
+		--no-hash-work)
+			do_hash_work=false
 			;;
 		--localhost-image)
 			localhost_image=true
